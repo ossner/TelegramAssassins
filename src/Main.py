@@ -264,20 +264,15 @@ def main():
     updater = Updater(os.getenv("SAS_TOKEN"), use_context=True)
     dp = updater.dispatcher
 
-    start_handler = CommandHandler('start', start, run_async=True)
-    dp.add_handler(start_handler)
+    dp.add_handler(CommandHandler('start', start, run_async=True))
 
-    newGameHandler = CommandHandler('newgame', new_game, run_async=True)
-    dp.add_handler(newGameHandler)
+    dp.add_handler(CommandHandler('newgame', new_game, run_async=True))
 
-    startgame_handler = CommandHandler('startgame', start_game, run_async=True)
-    dp.add_handler(startgame_handler)
+    dp.add_handler(CommandHandler('startgame', start_game, run_async=True))
 
-    stopgame_handler = CommandHandler('stopgame', stop_game, run_async=True)
-    dp.add_handler(stopgame_handler)
+    dp.add_handler(CommandHandler('stopgame', stop_game, run_async=True))
 
-    broadcast_handler = CommandHandler('broadcast', broadcast, run_async=True)
-    dp.add_handler(broadcast_handler)
+    dp.add_handler(CommandHandler('broadcast', broadcast, run_async=True))
 
     joinGame_handler = ConversationHandler(
         entry_points=[CommandHandler('joinGame', join_game, run_async=True)],
@@ -294,34 +289,25 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel, run_async=True)])
     dp.add_handler(joinGame_handler)
 
-    dropout_handler = CommandHandler('dropout', dropout, run_async=True)
-    dp.add_handler(dropout_handler)
+    dp.add_handler(CommandHandler('dropout', dropout, run_async=True))
 
-    burn_handler = CommandHandler('burn', burn, run_async=True)
-    dp.add_handler(burn_handler)
+    dp.add_handler(CommandHandler('burn', burn, run_async=True))
 
-    dossier_handler = CommandHandler('dossier', dossier, run_async=True)
-    dp.add_handler(dossier_handler)
+    dp.add_handler(CommandHandler('dossier', dossier, run_async=True))
 
-    leaderboard_handler = CommandHandler('leaderboard', leaderboard, run_async=True)
-    dp.add_handler(leaderboard_handler)
+    dp.add_handler(CommandHandler('leaderboard', leaderboard, run_async=True))
 
-    players_handler = CommandHandler('players', players, run_async=True)
-    dp.add_handler(players_handler)
+    dp.add_handler(CommandHandler('players', players, run_async=True))
 
-    confirmKill_handler = CommandHandler('confirmKill', confirmKill, run_async=True)
-    dp.add_handler(confirmKill_handler)
+    dp.add_handler(CommandHandler('confirmKill', confirmKill, run_async=True))
 
-    confirmDead_handler = CommandHandler('confirmDead', confirmDead, run_async=True)
-    dp.add_handler(confirmDead_handler)
+    dp.add_handler(CommandHandler('confirmDead', confirmDead, run_async=True))
 
-    rules_handler = CommandHandler('rules', rules, run_async=True)
-    dp.add_handler(rules_handler)
+    dp.add_handler(CommandHandler('rules', rules, run_async=True))
 
     #TODO: Error handler
 
-    help_handler = CommandHandler('help', help_overview, run_async=True)
-    dp.add_handler(help_handler)
+    dp.add_error_handler(error_callback)
 
     updater.start_polling()
     updater.idle()
