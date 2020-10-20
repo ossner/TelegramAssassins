@@ -32,6 +32,29 @@ logger = logging.getLogger(__name__)
 
 GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)
 
+def error_callback(update, context):
+    try:
+        raise context.error
+    except Unauthorized:
+        update.message.reply_text('Error: Unauthorized')
+        logger.info('User %s caused an unauthorized error.', update.message.from_user.first_name)
+        # remove update.message.chat_id from conversation list
+    except BadRequest:
+        update.message.reply_text('Error: Bad request')
+        logger.info('User %s caused a bad request.', update.message.from_user.first_name)
+        # handle malformed requests - read more below!
+    except TimedOut:
+        update.message.reply_text('Error: Timed out. Please try again')
+        logger.info('User %s request timed out.', update.message.from_user.first_name)
+        # handle slow connection problems
+    except NetworkError:
+        update.message.reply_text('Error: Network Error. Please try again')
+        logger.info('User %s caused a network error.', update.message.from_user.first_name)
+        # handle other connection problems
+    except TelegramError:
+        update.message.reply_text('A Telegram Error occured, plesae try again')
+        logger.info('User %s caused a Telegram Error.', update.message.from_user.first_name)
+        # handle all other telegram related errors
 
 # Fallback command if the user wants to end his
 def cancel(update, context):
@@ -305,7 +328,7 @@ def main():
 
     dp.add_handler(CommandHandler('rules', rules, run_async=True))
 
-    #TODO: Error handler
+    dp.add_handler(CommandHandler('help', help_overview, run_async=True))
 
     dp.add_error_handler(error_callback)
 
