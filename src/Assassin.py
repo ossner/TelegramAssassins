@@ -40,9 +40,39 @@ def getPlayerCodeName(assassin_id, master_id):
     connection.commit()
     return cursor.fetchone()
 
-def eliminatePlayer(assassin_id):
-    # TODO: If assassin is enrolled in a running game, re-assign target to hunter
-    # TODO: If assassin is enrolled in an upcoming game, remove him from table
-    cursor.execute("")
+# Removes a player from the game. Either dropout, burning or elimination. If dropout or burning, the kill tally will not get incremented
+# If the game was running, update the tagret list, as the hunter of the eliminated player will get the target of them as the new target
+# Also return the id of the hunter if possible, so that the hunter will get the new information of their target
+# If the player was not enrolled in a running game, simply remove them from the table
+def eliminatePlayer(assassin_id, kill=False):
+    if checkJoined(assassin_id, True):
+        hunter = getHunter(assassin_id)
+        # Increments hunter kill tally
+        if kill:
+            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL, a2.dead=1, a1.tally=a1.tally+1 WHERE a2.id=%s;", (assassin_id, ))
+        # Does not increment hunter kill tally
+        else:
+            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL, a2.dead=1 WHERE a2.id=%s;", (assassin_id, ))
+    # Player was not enrolled in a running game, simply remove them from the database
+    else:
+        cursor.execute("DELETE from assassins where id=%s", (assassin_id, ))
+        connection.commit()
+        return None
+    connection.commit()
+    return hunter
+
+def getHunter(assassin_id):
+    cursor.execute("SELECT id FROM assassins where target=%s", (assassin_id, ))
+    connection.commit()
+    return cursor.fetchone()
+
+def checkAlive(assassin_id):
+    cursor.execute("SELECT id FROM assassins WHERE id=%s AND dead=0", (assassin_id, ))
+    connection.commit()
+    return cursor.fetchone()
+
+# returns players targets id, game, and necessary assassin info
+def getTargetInfo(assassin_id):
+    cursor.execute("SELECT t.id, t.game, t.first_name, t.code_name, t.address, t.major FROM assassins h INNER JOIN assassins t ON h.target=t.id WHERE h.id=%s;", (assassin_id, ))
     connection.commit()
     return cursor.fetchone()
