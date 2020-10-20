@@ -17,9 +17,11 @@ import logging
 import emoji
 import re
 import random
-from telegram import (ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
+from telegram import (ParseMode, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
+from telegram.error import (TelegramError, Unauthorized, BadRequest, 
+                            TimedOut, ChatMigrated, NetworkError)
 
 from Game import (Game, checkPresent, checkJoinable, startGame, stopGame, getPlayerlist, playerEnrolled, getMaster)
 from Assassin import (Assassin, checkJoined, getPlayerCodeName, eliminatePlayer, getTargetInfo, checkAlive)
@@ -206,21 +208,32 @@ def dropout(update, context):
         update.message.reply_text('You are not enrolled in a game')
 
 def burn(update, context):
-    player = context.args[0]
-    if re.match(r"^\d+$", player):
-        if playerEnrolled(player, update.message.chat_id):
-            update.message.reply_text('Burning player ' + getPlayerCodeName(player, update.message.chat_id)[0])
-            hunter = eliminatePlayer(player)
-            # if there is a result returned, the target of the burnt players hunter was updated
-            if hunter:
-                sendTarget(context, hunter[0])
+    # If the person has a game registered
+    if checkPresent(update.message.chat_id):
+        # If there is a player id provided in the message
+        if context.args:
+            player = context.args[0]
+            # If the player id argument actually consists of digits
+            if re.match(r"^\d+$", player):
+                # If the player id is enrolled in the game of the master
+                if playerEnrolled(player, update.message.chat_id):
+                    update.message.reply_text('Burning player ' + getPlayerCodeName(player, update.message.chat_id)[0])
+                    # If the game started, it will return the hunter of the burnt player
+                    hunter = eliminatePlayer(player)
+                    # if there is a result returned, the target of the burnt players hunter was updated
+                    if hunter:
+                        sendTarget(context, hunter[0])
+                else:
+                    update.message.reply_text('This player is not enrolled in your game. Use /players to get an overview of your players and their ids')
+            else:
+                update.message.reply_text('This is not a valid player-id. Use /players to get an overview of your players and their ids')
         else:
-            update.message.reply_text('This player is not enrolled in your game')
+            update.message.reply_text('Please provide the disgraced assassins id after the command (e.g. /burn 123456789), use /players to obtain a list')
     else:
-        update.message.reply_text('This is not a valid player-id')
+        update.message.reply_text('You do not have a game registered')
 
 def dossier(update, context):
-    if (checkJoined(update.message.chat_id)):
+    if (checkJoined(update.message.chat_id, started=True)):
         sendTarget(context, update.message.chat_id)
     else:
         update.message.reply_text('You are not enrolled in a running game')
@@ -230,6 +243,7 @@ def sendTarget(context, chat_id):
     # If the target and the hunter are the same person, the game is over
     if chat_id == targetInfo[0]:
         winner(context, targetInfo[1], chat_id)
+        return
     random_skills = ['lockpicking', 'hand-to-hand combat', 'target acquisition',
                 'covert operations', 'intelligence gathering', 'marksmanship',
                 'knife-throwing', 'explosives', 'poison', 'seduction',
