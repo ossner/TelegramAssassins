@@ -11,29 +11,29 @@ connection = mysql.connector.connect(
 cursor = connection.cursor(buffered=True)
 
 class Game:
-    def __init__(self, master):
+    def __init__(self, master, master_username):
         self.master = master
+        self.master_username = master_username
         self.id = random.randint(100000, 999999) # creates a random 6 digit game id that might not be unique. it would be easy enough to check if it's taken,
                                                  # but I like a little danger in my life
         self.enterData()
 
 
     def enterData(self):
-        cursor.execute("INSERT INTO games (id, master) VALUES (%s, %s);", (self.id, self.master))
+        cursor.execute("INSERT INTO games (id, master, username) VALUES (%s, %s, %s);", (self.id, self.master, self.master_username))
         connection.commit()
-
 
 # checks whether or not the user with the id already registered a game
 def checkPresent(master, started=False):
     if started:
         cursor.execute("SELECT master FROM games WHERE master=%s AND started=1;", (master, ))
     else:
-        cursor.execute("SELECT master FROM games where master=%s;", (master, ))
+        cursor.execute("SELECT master FROM games WHERE master=%s;", (master, ))
         connection.commit()
     return cursor.fetchone()
 
 def checkStartable(master):
-    cursor.execute("SELECT master FROM games where master=%s AND started=0;", (master, ))
+    cursor.execute("SELECT master FROM games WHERE master=%s AND started=0;", (master, ))
     connection.commit()
     return cursor.fetchone()
 
@@ -50,34 +50,42 @@ def assignTargets(master):
     return playerIds
 
 def stopGame(master):
-    # TODO: send out leaderboard and notify players
-    # deleting the game will cascade and delete all assassins registered to that game
+    saveBackup(getGameid(master)[0])
     cursor.execute("DELETE FROM games WHERE master=%s;", (master, ))
     connection.commit()
 
-# Send out leaderboard of game
-def leaderboard(master, redacted):
-    # Send game info like this: "Place  |   Codename   |   real name (if redacted false)    |   Kill tally"
-    pass
+def saveBackup(game_id):
+    cursor.execute("SELECT * FROM assassins INNER JOIN games ON games.id=assassins.game WHERE games.id=%s;", (game_id, ))
+    connection.commit()
+    backup = open('images/' + str(game_id) + '/backup.txt', 'w')
+    response = cursor.fetchall()
+    for line in response:
+        backup.write(str(line))
+    backup.close()
 
 # retrieves all players currently enrolled in this masters running game
 def getPlayerlist(master):
-    cursor.execute("SELECT assassins.id from assassins INNER JOIN games on games.id=assassins.game AND games.master=%s AND games.started=1;", (master, ))
+    cursor.execute("SELECT assassins.id, assassins.first_name, assassins.code_name, assassins.tally, assassins.target FROM assassins INNER JOIN games on games.id=assassins.game AND games.master=%s ORDER BY assassins.tally DESC;", (master, ))
     connection.commit()
     return cursor.fetchall()
 
 def getMaster(game_id):
-    cursor.execute("SELECT games.master FROM games WHERE id=%s", (game_id, ))
+    cursor.execute("SELECT games.master, games.username FROM games WHERE id=%s", (game_id, ))
+    connection.commit()
+    return cursor.fetchone()
+
+def getGameid(master):
+    cursor.execute("SELECT id FROM games WHERE master = %s", (master, ))
     connection.commit()
     return cursor.fetchone()
 
 
 def checkJoinable(id):
-    cursor.execute("SELECT * from games WHERE id=%s AND started=0;", (id, ))
+    cursor.execute("SELECT * FROM games WHERE id=%s AND started=0;", (id, ))
     connection.commit()
     return cursor.fetchone()
 
 def playerEnrolled(player_id, master_id):
-    cursor.execute("SELECT assassins.code_name FROM assassins INNER JOIN games g ON assassins.game = g.id AND g.master=%s AND assassins.id=%s AND g.started=1;", (master_id, player_id))
+    cursor.execute("SELECT assassins.code_name FROM assassins INNER JOIN games g ON assassins.game = g.id AND g.master=%s AND assassins.id=%s;", (master_id, player_id))
     connection.commit()
     return cursor.fetchone()
