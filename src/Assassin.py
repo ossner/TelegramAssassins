@@ -24,6 +24,18 @@ class Assassin:
         cursor.execute("INSERT INTO ASSASSINS (`id`, `first_name`, `code_name`, `address`, `major`, `needs_weapon`, `game`) VALUES (%s, %s, %s, %s, %s, %s, %s)", (self.chat_id, self.name, self.codename, self.address, self.major, self.weapon, self.idgame))
         connection.commit()
 
+def reconnect():
+    print('Attempting to reconnect...')
+    global connection
+    global cursor
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password=os.getenv("MYSQL_ROOT"),
+        database='Assassins_Society'
+    )
+    cursor = connection.cursor(buffered=True)
+
 # Returns a result if the player with the given id has joined a game that is either upcoming or already started
 def checkJoined(assassin_id, started=False):
     if started:
