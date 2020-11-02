@@ -342,16 +342,16 @@ def help_overview(update, context):
     logger.info('User name: {x}, id: {y} requested help.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     update.message.reply_text(
         'This Bot was written by github.com/ossner. The code is licensed under the MIT license\n\n'
-        'If you want to find out more about about this bot and its commands, have a look at the [manual](https://github.com/ossner/TelegramAssassins/blob/main/README.md)\n\n'
         '*User commands:*\n'
         '/help - Get an overview of the available commands\n'
+        '/rules - Get an overview of the rules for the game (subject to change)\n'
         '/joingame - Join an upcoming game\n'
         '/dropout - Drop out of the game you\'re registered to\n'
         '/newgame - Create a new game of Assassins where you\'re the admin\n'
         '/confirmkill - Confirm target elimination\n'
         '/dossier - Re-send your target\'s information\n\n'
         '*Admin commands:*\n'
-        '/scoreboard - Get the scoreboard of the game you\'re running\n'
+        '/leaderboard - Get the scoreboard of the game you\'re hosting\n'
         '/broadcast - Send a message to all participating players\n'
         '/burn - Burn an assassin after non-compliance to the rules', parse_mode=ParseMode.MARKDOWN)
 
