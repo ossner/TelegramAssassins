@@ -57,14 +57,17 @@ def error_handler(update, context):
     context.bot.send_message(chat_id=705347597, text=message, parse_mode=ParseMode.HTML)
     update.message.reply_text('An error occured, please try again')
     reconnect()
+
+def start(update, context):
+    logger.info('User name: {x}, id: {y} started the chat.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    update.message.reply_text('Greetings aspiring assassin!\nI am M, your contact into the Secret Assassins Society. If you want to join a game of Assassins, type /joingame, if you want to start one yourself, type /newgame.\nIf you want to know more about me and what I can do, type /help')
+
+# Fallback command if the user wants to end his conversation
 def cancel(update, context):
     user = update.message.from_user
     logger.info('User name: {x}, id: {y} cancelled the conversation.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     update.message.reply_text('Cancelled. Roger')
     return ConversationHandler.END
-
-def start(update, context):
-    update.message.reply_text('Greetings aspiring assassin!\nI am M, your contact into the Secret Assassins Society. If you want to join a game of Assassins, type /joingame, if you want to start one yourself, type /newgame.\nIf you want to know more about me and what I can do, type /help')
 
 def new_game(update, context):
     logger.info('User name: {x}, id: {y} created a new game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
@@ -135,17 +138,21 @@ def join_game(update, context):
         update.message.reply_text('You are already enrolled in a running game. You can use /dropout to cancel that')
         return ConversationHandler.END
     else:
-        update.message.reply_text('If at any point you want to stop the sign-up process, simply type /cancel')
+        update.message.reply_text('If something stops working, text @ossner. If at any point you want to stop the sign-up process, simply type /cancel')
         update.message.reply_text('Alright. Please tell me the super secret 6-digit code for the game')
         return GAMECODE
 
 def assassin_name(update, context):
-    context.user_data['gameId'] = update.message.text
-    if re.match(r"\d{6}", context.user_data['gameId']) and checkJoinable(update.message.text):
-        update.message.reply_text('Got it, now please provide me with your full name')
-        return ASSASSINNAME
+    if re.match(r"^\d+$", update.message.text):
+        context.user_data['gameId'] = str(int(update.message.text))
+        if re.match(r"\d+", context.user_data['gameId']) and checkJoinable(update.message.text):
+            update.message.reply_text('Got it, now please provide me with your full name')
+            return ASSASSINNAME
+        else:
+            update.message.reply_text('This game does not exist or is not joinable anymore')
+            return ConversationHandler.END
     else:
-        update.message.reply_text('This game does not exist or is not joinable anymore')
+        update.message.reply_text('This is not a valid gameid')
         return ConversationHandler.END
 
 def code_name(update, context):
@@ -177,7 +184,7 @@ def address(update, context):
     query = update.callback_query
     query.answer()
     context.user_data['weapon'] = query.data
-    query.edit_message_text('Affirmative {}. We also need your address for the life insurance form'.format(context.user_data['codeName']))
+    query.edit_message_text('Affirmative {}. We also need your full address for the life insurance form'.format(context.user_data['codeName']))
     return ADDRESS
 
 def major(update, context):
@@ -201,10 +208,11 @@ def image(update, context):
 def signup_done(update, context):
     photo_file = update.message.photo[-1].get_file()
     chatId = update.message.chat_id
-    photo_file.download('images/{}/{}.jpg'.format(str(context.user_data['gameId']), str(chatId)))
+    photo_file.download('images/{}/{}.jpg'.format(context.user_data['gameId'], str(chatId)))
     if checkJoinable(context.user_data['gameId']):
         player = Assassin(context.user_data['name'], context.user_data['codeName'], context.user_data['address'], chatId, context.user_data['major'], context.user_data['weapon'], context.user_data['gameId'])
-        update.message.reply_text('That\'s it. I will contact you again once the game has begun. Stay vigilant!')
+        update.message.reply_text(getRules())
+        update.message.reply_text('That\'s it. I will contact you again once the game has begun. Stay vigilant! If you have any further questions, text your game master @{}'.format(getMaster(context.user_data['gameId'])[1]))
         logger.info('User name: {x}, id: {y} finished signing up for a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     else:
         update.message.reply_text('Could not finish signup as game has already started')
@@ -253,8 +261,8 @@ def burn(update, context):
         update.message.reply_text('You do not have a game registered')
 
 def dossier(update, context):
-    if (checkJoined(update.message.chat_id, started=True)):
     logger.info('User name: {x}, id: {y} request timed out.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    if (checkJoined(update.message.chat_id, started=True)) and checkAlive(update.message.chat_id):
         sendTarget(context, update.message.chat_id)
     else:
         update.message.reply_text('You are not enrolled in a running game')
