@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 Sebastian Ossner
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -17,6 +18,9 @@ import logging
 import emoji
 import re
 import random
+import html
+import json
+import traceback
 from telegram import (ParseMode, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
@@ -24,7 +28,7 @@ from telegram.error import (TelegramError, Unauthorized, BadRequest,
                             TimedOut, ChatMigrated, NetworkError)
 
 from Game import (Game, checkPresent, checkJoinable, startGame, stopGame, getPlayerlist, playerEnrolled, getMaster)
-from Assassin import (Assassin, checkJoined, getPlayerCodeName, eliminatePlayer, checkAlive, setPresumedDead, getAssassin, getPresumedDead)
+from Assassin import (Assassin, checkJoined, getPlayerCodeName, eliminatePlayer, checkAlive, setPresumedDead, getAssassin, getPresumedDead, reconnect)
 
 
 # Enable logging
