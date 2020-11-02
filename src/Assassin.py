@@ -77,7 +77,7 @@ def getHunter(assassin_id):
     return cursor.fetchone()
 
 def checkAlive(assassin_id):
-    cursor.execute("SELECT id FROM assassins WHERE id=%s AND target=NULL;", (assassin_id, ))
+    cursor.execute("SELECT id FROM assassins WHERE id=%s AND target IS NOT NULL;", (assassin_id, ))
     connection.commit()
     return cursor.fetchone()
 
