@@ -38,34 +38,28 @@ logger = logging.getLogger(__name__)
 
 GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)
 
-def error_callback(update, context):
-    try:
-        raise context.error
-    except Unauthorized:
-        update.message.reply_text('Error: Unauthorized')
-        logger.info('User %s caused an unauthorized error.', update.message.from_user.first_name)
-        # remove update.message.chat_id from conversation list
-    except BadRequest:
-        update.message.reply_text('Error: Bad request')
-        logger.info('User %s caused a bad request.', update.message.from_user.first_name)
-        # handle malformed requests - read more below!
-    except TimedOut:
-        update.message.reply_text('Error: Timed out. Please try again')
-        logger.info('User %s request timed out.', update.message.from_user.first_name)
-        # handle slow connection problems
-    except NetworkError:
-        update.message.reply_text('Error: Network Error. Please try again')
-        logger.info('User %s caused a network error.', update.message.from_user.first_name)
-        # handle other connection problems
-    except TelegramError:
-        update.message.reply_text('A Telegram Error occured, plesae try again')
-        logger.info('User %s caused a Telegram Error.', update.message.from_user.first_name)
-        # handle all other telegram related errors
-
-# Fallback command if the user wants to end his
+def error_handler(update, context):
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+    tb_string = ''.join(tb_list)
+    message = (
+        'An exception was raised while handling an update\n'
+        '<pre>update = {}</pre>\n\n'
+        '<pre>context.chat_data = {}</pre>\n\n'
+        '<pre>context.user_data = {}</pre>\n\n'
+        '<pre>{}</pre>'
+    ).format(
+        html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False)),
+        html.escape(str(context.chat_data)),
+        html.escape(str(context.user_data)),
+        html.escape(tb_string),
+    )
+    context.bot.send_message(chat_id=705347597, text=message, parse_mode=ParseMode.HTML)
+    update.message.reply_text('An error occured, please try again')
+    reconnect()
 def cancel(update, context):
     user = update.message.from_user
-    logger.info("User %s canceled the conversation.", user.first_name)
+    logger.info('User name: {x}, id: {y} cancelled the conversation.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     update.message.reply_text('Cancelled. Roger')
     return ConversationHandler.END
 
@@ -73,6 +67,7 @@ def start(update, context):
     update.message.reply_text('Greetings aspiring assassin!\nI am M, your contact into the Secret Assassins Society. If you want to join a game of Assassins, type /joingame, if you want to start one yourself, type /newgame.\nIf you want to know more about me and what I can do, type /help')
 
 def new_game(update, context):
+    logger.info('User name: {x}, id: {y} created a new game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     # If the user has a telegram username registered
     if update.message.from_user['username']:
         # If the user already has a game (either registered or started)
@@ -93,6 +88,7 @@ def new_game(update, context):
         update.message.reply_text('You don\'t have a telegram username, please create one on your profile so your assassins can text you')
 
 def start_game(update, context):
+    logger.info('User name: {x}, id: {y} started their game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     if checkPresent(update.message.chat_id):
         if checkPresent(update.message.chat_id, started=True):
             update.message.reply_text('Your game has already started')
@@ -107,6 +103,7 @@ def start_game(update, context):
         update.message.reply_text('You do not have a game registered, use /newgame to register a game')
 
 def stop_game(update, context):
+    logger.info('User name: {x}, id: {y} stopped their game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     if checkPresent(update.message.chat_id):
         if checkPresent(update.message.chat_id, started=True):
             update.message.reply_text('Your game has concluded and the players will be notified. Here is the leaderboard')
@@ -124,6 +121,7 @@ def broadcast(update, context):
             update.message.reply_text('You cannot send an empty message!')
         else:
             message = ' '.join(context.args)
+            logger.info('User name: {x}, id: {y} broadcasted \"{z}\"'.format(x=update.message.from_user.first_name, y=update.message.chat_id, z=message))
             players = getPlayerlist(update.message.chat_id)
             for player in players:
                 context.bot.send_message(player[0], "Assassin! Your gamemaster has a message for you:\n" + message)
@@ -132,6 +130,7 @@ def broadcast(update, context):
         update.message.reply_text('You don\'t have a running game at the moment')
 
 def join_game(update, context):
+    logger.info('User name: {x}, id: {y} tried to join a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     if checkJoined(update.message.chat_id):
         update.message.reply_text('You are already enrolled in a running game. You can use /dropout to cancel that')
         return ConversationHandler.END
@@ -206,11 +205,13 @@ def signup_done(update, context):
     if checkJoinable(context.user_data['gameId']):
         player = Assassin(context.user_data['name'], context.user_data['codeName'], context.user_data['address'], chatId, context.user_data['major'], context.user_data['weapon'], context.user_data['gameId'])
         update.message.reply_text('That\'s it. I will contact you again once the game has begun. Stay vigilant!')
+        logger.info('User name: {x}, id: {y} finished signing up for a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     else:
         update.message.reply_text('Could not finish signup as game has already started')
     return ConversationHandler.END
 
 def dropout(update, context):
+    logger.info('User name: {x}, id: {y} request timed out.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     if checkJoined(update.message.chat_id):
         if checkJoined(update.message.chat_id, started=True):
             if checkAlive(update.message.chat_id):
@@ -253,6 +254,7 @@ def burn(update, context):
 
 def dossier(update, context):
     if (checkJoined(update.message.chat_id, started=True)):
+    logger.info('User name: {x}, id: {y} request timed out.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
         sendTarget(context, update.message.chat_id)
     else:
         update.message.reply_text('You are not enrolled in a running game')
@@ -337,6 +339,7 @@ def rules(update, context):
     pass
 
 def help_overview(update, context):
+    logger.info('User name: {x}, id: {y} requested help.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
     update.message.reply_text(
         'This Bot was written by github.com/ossner. The code is licensed under the MIT license\n\n'
         'If you want to find out more about about this bot and its commands, have a look at the [manual](https://github.com/ossner/TelegramAssassins/blob/main/README.md)\n\n'
@@ -402,7 +405,7 @@ def main():
 
     dp.add_handler(CommandHandler('help', help_overview, run_async=True))
 
-    dp.add_error_handler(error_callback)
+    dp.add_error_handler(error_handler)
 
     updater.start_polling()
     updater.idle()
