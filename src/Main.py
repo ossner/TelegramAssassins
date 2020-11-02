@@ -54,7 +54,7 @@ def error_handler(update, context):
         html.escape(str(context.user_data)),
         html.escape(tb_string),
     )
-    context.bot.send_message(chat_id=705347597, text=message, parse_mode=ParseMode.HTML)
+    context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
     update.message.reply_text('An error occured, please try again')
     reconnect()
 
