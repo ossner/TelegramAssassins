@@ -320,11 +320,15 @@ def players(update, context):
 
 # Player claims to have killed their target, send confirmation request to target, which can be contested
 def confirmKill(update, context):
-    # extracts information about target of this player
-    target = getAssassin(getAssassin(update.message.chat_id)[6])
-    # index 0 is player id
-    setPresumedDead(target[0], 1)
-    context.bot.send_message(target[0], 'Your hunter has claimed to have assassinated you! If this is true, type /confirmdead. If it is not, text your game master @{}'.format(getMaster(target[8])[1]))
+    if checkPresent(update.message.chat_id, started=True):
+        # extracts information about target of this player
+        target = getAssassin(getAssassin(update.message.chat_id)[6])
+        # index 0 is player id
+        setPresumedDead(target[0], 1)
+        update.message.reply_text('I will check with your target whether this is true, if it takes longer than 24 hours until you get your new target, text your game master @{}'.format(getMaster(target[8])[1]))
+        context.bot.send_message(target[0], 'Your hunter has claimed to have assassinated you! If this is true, type /confirmdead. If it is not, text your game master @{}'.format(getMaster(target[8])[1]))
+    else:
+        update.message.reply_text('You are not e')
 
 def confirmDead(update, context):
     if getPresumedDead(update.message.chat_id):
@@ -336,7 +340,19 @@ def confirmDead(update, context):
         update.message.reply_text('There is nothing to contest')
 
 def rules(update, context):
-    pass
+    update.message.reply_text('These are the rules for your game:\n' + getRules())
+
+def getRules():
+    ruleText = (''
+    '1. Your task is to assassinate your assigned target by shooting them with a water gun. (Kills must be reported to gamemaster bot by both assassin and target)\n'
+    '2. Targets are always safe in their room, in classes, and places of work.\n'
+    '3. When you assassinate your target, their target becomes your new target.\n'
+    '4. If you are shot by your target, you are then disabled for 24 hrs.\n'
+    '5. The last person alive or the person with the most assassinations at the end of the game is the  winner\n'
+    '6. Always stay 1.5 meters away from other assassins. They\'re assassins after all\n'
+    '7. If per official guidelines you are required to quarantine, or you have corona-like symptoms, you\'ll have to withdraw from the game\n'
+    '8. You mustn\'t leave the premises for more than 5 whole days\n')
+    return ruleText
 
 def help_overview(update, context):
     logger.info('User name: {x}, id: {y} requested help.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
