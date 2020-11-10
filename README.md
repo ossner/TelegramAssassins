@@ -1,5 +1,5 @@
 # TelegramAssassins
-Telegram Bot that manages instances of the game [Assassins](https://en.wikipedia.org/wiki/Assassin_(game))
+Telegram Bot that manages instances of the live-action game "[Assassins](https://en.wikipedia.org/wiki/Assassin_(game))"
 
 ## How it works
 Users can send commands to the Bot, these commands will get interpreted and data will be entered into the database
