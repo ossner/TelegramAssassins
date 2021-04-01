@@ -23,6 +23,18 @@ class Game:
         cursor.execute("INSERT INTO games (id, master, username) VALUES (%s, %s, %s);", (self.id, self.master, self.master_username))
         connection.commit()
 
+def gameReconnect():
+    print('Attempting to reconnect...')
+    global connection
+    global cursor
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password=os.getenv("MYSQL_ROOT"),
+        database='Assassins_Society'
+    )
+    cursor = connection.cursor(buffered=True)
+
 # checks whether or not the user with the id already registered a game
 def checkPresent(master, started=False):
     if started:
@@ -50,7 +62,7 @@ def assignTargets(master):
     return playerIds
 
 def stopGame(master):
-    saveBackup(getGameid(master)[0])
+    #saveBackup(getGameid(master)[0])
     cursor.execute("DELETE FROM games WHERE master=%s;", (master, ))
     connection.commit()
 
@@ -66,6 +78,12 @@ def saveBackup(game_id):
 # retrieves all players currently enrolled in this masters running game
 def getPlayerlist(master):
     cursor.execute("SELECT assassins.id, assassins.first_name, assassins.code_name, assassins.tally, assassins.target FROM assassins INNER JOIN games on games.id=assassins.game AND games.master=%s ORDER BY assassins.tally DESC;", (master, ))
+    connection.commit()
+    return cursor.fetchall()
+
+# retrieves all players currently enrolled in this masters running game
+def getAlivePlayerlist(master):
+    cursor.execute("SELECT assassins.id, assassins.first_name, assassins.code_name, assassins.tally, assassins.target FROM assassins INNER JOIN games on games.id=assassins.game AND games.master=%s WHERE assassins.target is not NULL ORDER BY assassins.tally DESC;", (master, ))
     connection.commit()
     return cursor.fetchall()
 

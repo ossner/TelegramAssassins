@@ -59,10 +59,10 @@ def eliminatePlayer(assassin_id, kill=False):
         hunter = getHunter(assassin_id)
         # Increments hunter kill tally
         if kill:
-            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL, a1.tally=a1.tally+1 WHERE a2.id=%s;", (assassin_id, ))
+            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL, a1.tally=a1.tally+1, a2.presumeddead=0, a1.presumeddead=0 WHERE a2.id=%s;", (assassin_id, ))
         # Does not increment hunter kill tally
         else:
-            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL WHERE a2.id=%s;", (assassin_id, ))
+            cursor.execute("UPDATE assassins a2 INNER JOIN assassins a1 ON a1.target=a2.id SET a1.target=a2.target, a2.target=NULL, a2.presumeddead=0, a1.presumeddead=0 WHERE a2.id=%s;", (assassin_id, ))
     # Player was not enrolled in a running game, simply remove them from the database
     else:
         cursor.execute("DELETE FROM assassins where id=%s;", (assassin_id, ))
@@ -80,6 +80,10 @@ def checkAlive(assassin_id):
     cursor.execute("SELECT id FROM assassins WHERE id=%s AND target IS NOT NULL;", (assassin_id, ))
     connection.commit()
     return cursor.fetchone()
+
+def addTaskPoint(assassin_id):
+    cursor.execute("UPDATE assassins SET solved_tasks=solved_tasks+1 WHERE id=%s;", (assassin_id, ))
+    connection.commit()
 
 def setPresumedDead(assassin_id, value):
     cursor.execute("UPDATE assassins SET presumeddead=%s WHERE id=%s;", (value, assassin_id))
