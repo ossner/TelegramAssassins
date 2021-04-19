@@ -15,7 +15,6 @@
 
 import os
 import logging
-import emoji
 import re
 import random
 import html
@@ -24,12 +23,13 @@ import traceback
 from telegram import (ParseMode, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
-from telegram.error import (TelegramError, Unauthorized, BadRequest, 
+from telegram.error import (TelegramError, Unauthorized, BadRequest,
                             TimedOut, ChatMigrated, NetworkError)
 
-from Game import (Game, checkPresent, checkJoinable, startGame, stopGame, getPlayerlist, playerEnrolled, getMaster, gameReconnect, getAlivePlayerlist)
-from Assassin import (Assassin, checkJoined, getPlayerCodeName, eliminatePlayer, checkAlive, setPresumedDead, getAssassin, getPresumedDead, reconnect, addTaskPoint)
-
+from Game import (Game, checkPresent, checkJoinable, startGame, stopGame, getPlayerlist, playerEnrolled, getMaster,
+                  gameReconnect, getAlivePlayerlist)
+from Assassin import (Assassin, checkJoined, getPlayerCodeName, eliminatePlayer, checkAlive, setPresumedDead,
+                      getAssassin, getPresumedDead, reconnect, addTaskPoint)
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -41,6 +41,7 @@ GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)
 ANSWER = 1
 
 DEVELOPER_CHAT_ID = 705347597
+
 
 def error_handler(update, context):
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
@@ -63,19 +64,26 @@ def error_handler(update, context):
     reconnect()
     gameReconnect()
 
+
 def start(update, context):
-    logger.info('User name: {x}, id: {y} started the chat.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
-    update.message.reply_text('Greetings aspiring assassin!\nI am M, your contact into the Secret Assassins Society. If you want to join a game of Assassins, type /joingame, if you want to start one yourself, type /newgame.\nIf you want to know more about me and what I can do, type /help')
+    logger.info('User name: {x}, id: {y} started the chat.'.format(x=update.message.from_user.first_name,
+                                                                   y=update.message.chat_id))
+    update.message.reply_text(
+        'Greetings aspiring assassin!\nI am M, your contact into the Secret Assassins Society. If you want to join a game of Assassins, type /joingame, if you want to start one yourself, type /newgame.\nIf you want to know more about me and what I can do, type /help')
+
 
 # Fallback command if the user wants to end his conversation
 def cancel(update, context):
     user = update.message.from_user
-    logger.info('User name: {x}, id: {y} cancelled the conversation.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} cancelled the conversation.'.format(x=update.message.from_user.first_name,
+                                                                             y=update.message.chat_id))
     update.message.reply_text('Cancelled. Roger')
     return ConversationHandler.END
 
+
 def new_game(update, context):
-    logger.info('User name: {x}, id: {y} created a new game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} created a new game.'.format(x=update.message.from_user.first_name,
+                                                                     y=update.message.chat_id))
     # If the user has a telegram username registered
     if update.message.from_user['username']:
         # If the user already has a game (either registered or started)
@@ -93,10 +101,13 @@ def new_game(update, context):
                 'Alright. You will be the admin of game {}. Give this code to your players so they can register.\n'
                 'You can use /startgame to start this round'.format(game.id))
     else:
-        update.message.reply_text('You don\'t have a telegram username, please create one on your profile so your assassins can text you')
+        update.message.reply_text(
+            'You don\'t have a telegram username, please create one on your profile so your assassins can text you')
+
 
 def start_game(update, context):
-    logger.info('User name: {x}, id: {y} started their game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} started their game.'.format(x=update.message.from_user.first_name,
+                                                                     y=update.message.chat_id))
     if checkPresent(update.message.chat_id):
         if checkPresent(update.message.chat_id, started=True):
             update.message.reply_text('Your game has already started')
@@ -105,16 +116,20 @@ def start_game(update, context):
             players = startGame(update.message.chat_id)
             # Notify players and start the game
             for player in players:
-                context.bot.send_message(player[0], 'Greetings assassin!\nYour game master has started the game and you have been assigned your first target:')
+                context.bot.send_message(player[0],
+                                         'Greetings assassin!\nYour game master has started the game and you have been assigned your first target:')
                 sendTarget(context, player[0])
     else:
         update.message.reply_text('You do not have a game registered, use /newgame to register a game')
 
+
 def stop_game(update, context):
-    logger.info('User name: {x}, id: {y} stopped their game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} stopped their game.'.format(x=update.message.from_user.first_name,
+                                                                     y=update.message.chat_id))
     if checkPresent(update.message.chat_id):
         if checkPresent(update.message.chat_id, started=True):
-            update.message.reply_text('Your game has concluded and the players will be notified. Here is the leaderboard:\n')
+            update.message.reply_text(
+                'Your game has concluded and the players will be notified. Here is the leaderboard:\n')
             leaderboard(update, context)
             stopGame(update.message.chat_id)
         else:
@@ -122,12 +137,14 @@ def stop_game(update, context):
     else:
         update.message.reply_text('You do not have a game registered, use /newgame to register a game')
 
+
 # Texts message to all players enrolled in game
 def broadcast(update, context):
     if checkPresent(update.message.chat_id):
         imagePresent = update.message.photo
         if imagePresent:
-            logger.info('User name: {x}, id: {y} broadcasted an image'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+            logger.info('User name: {x}, id: {y} broadcasted an image'.format(x=update.message.from_user.first_name,
+                                                                              y=update.message.chat_id))
             players = getAlivePlayerlist(update.message.chat_id)
             for player in players:
                 try:
@@ -140,7 +157,8 @@ def broadcast(update, context):
                 update.message.reply_text('You cannot send an empty message!')
             else:
                 message = ' '.join(context.args)
-                logger.info('User name: {x}, id: {y} broadcasted \"{z}\"'.format(x=update.message.from_user.first_name, y=update.message.chat_id, z=message))
+                logger.info('User name: {x}, id: {y} broadcasted \"{z}\"'.format(x=update.message.from_user.first_name,
+                                                                                 y=update.message.chat_id, z=message))
                 players = getAlivePlayerlist(update.message.chat_id)
                 for player in players:
                     try:
@@ -151,12 +169,14 @@ def broadcast(update, context):
     else:
         update.message.reply_text('You don\'t have a running game at the moment')
 
+
 # Texts message to all players enrolled in game
 def broadcastAll(update, context):
     if checkPresent(update.message.chat_id):
         imagePresent = update.message.photo
         if imagePresent:
-            logger.info('User name: {x}, id: {y} broadcasted an image'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+            logger.info('User name: {x}, id: {y} broadcasted an image'.format(x=update.message.from_user.first_name,
+                                                                              y=update.message.chat_id))
             players = getPlayerlist(update.message.chat_id)
             for player in players:
                 try:
@@ -169,7 +189,8 @@ def broadcastAll(update, context):
                 update.message.reply_text('You cannot send an empty message!')
             else:
                 message = ' '.join(context.args)
-                logger.info('User name: {x}, id: {y} broadcasted \"{z}\"'.format(x=update.message.from_user.first_name, y=update.message.chat_id, z=message))
+                logger.info('User name: {x}, id: {y} broadcasted \"{z}\"'.format(x=update.message.from_user.first_name,
+                                                                                 y=update.message.chat_id, z=message))
                 players = getPlayerlist(update.message.chat_id)
                 for player in players:
                     try:
@@ -180,15 +201,19 @@ def broadcastAll(update, context):
     else:
         update.message.reply_text('You don\'t have a running game at the moment')
 
+
 def join_game(update, context):
-    logger.info('User name: {x}, id: {y} tried to join a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} tried to join a game.'.format(x=update.message.from_user.first_name,
+                                                                       y=update.message.chat_id))
     if checkJoined(update.message.chat_id):
         update.message.reply_text('You are already enrolled in a running game. You can use /dropout to cancel that')
         return ConversationHandler.END
     else:
-        update.message.reply_text('If something stops working, text @ossner. If at any point you want to stop the sign-up process, simply type /cancel')
+        update.message.reply_text(
+            'If something stops working, text @ossner. If at any point you want to stop the sign-up process, simply type /cancel')
         update.message.reply_text('Alright. Please tell me the super secret 6-digit code for the game')
         return GAMECODE
+
 
 def assassin_name(update, context):
     if re.match(r"^\d+$", update.message.text):
@@ -203,19 +228,22 @@ def assassin_name(update, context):
         update.message.reply_text('This is not a valid gameid')
         return ConversationHandler.END
 
+
 def code_name(update, context):
-    context.user_data['name'] = update.message.text;
+    context.user_data['name'] = update.message.text
     if dirty(context.user_data['name']):
         update.message.reply_text('🚨 Possible breach detected 🚨\nPlease refrain from using special characters')
     else:
-        update.message.reply_text('Ok. Now tell me your way more interesting codename'.format(context.user_data['name']))
+        update.message.reply_text(
+            'Ok. Now tell me your way more interesting codename'.format(context.user_data['name']))
         return CODENAME
+
 
 def weapon(update, context):
     context.user_data['codeName'] = update.message.text;
     if dirty(context.user_data['codeName']):
         update.message.reply_text('🚨 Possible breach detected 🚨\nPlease refrain from using special characters')
-    
+
     keyboard = [
         [
             InlineKeyboardButton('I need a weapon', callback_data=1),
@@ -223,15 +251,21 @@ def weapon(update, context):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('To participate it is recommended that you own a hydro-pneumatic weapon. Such weapons will be handed out by our specialists. We can not guarantee you will receive one though.', reply_markup=reply_markup)
+    update.message.reply_text(
+        'To participate it is recommended that you own a hydro-pneumatic weapon. Such weapons will be handed out by our specialists. We can not guarantee you will receive one though.',
+        reply_markup=reply_markup)
     return WEAPON
+
 
 def address(update, context):
     query = update.callback_query
     query.answer()
     context.user_data['weapon'] = query.data
-    query.edit_message_text('Affirmative {}. We also need your address for the life insurance form (Street and Apt. #)'.format(context.user_data['codeName']))
+    query.edit_message_text(
+        'Affirmative {}. We also need your address for the life insurance form (Street and Apt. #)'.format(
+            context.user_data['codeName']))
     return ADDRESS
+
 
 def major(update, context):
     context.user_data['address'] = update.message.text
@@ -240,6 +274,7 @@ def major(update, context):
     else:
         update.message.reply_text('Almost done. Now I need to know what you study')
         return MAJOR
+
 
 def image(update, context):
     context.user_data['major'] = update.message.text
@@ -250,21 +285,29 @@ def image(update, context):
         update.message.reply_text('Lastly I need your pretty picture for your dossier')
         return PICTURE
 
+
 def signup_done(update, context):
     photo_file = update.message.photo[-1].get_file()
     chatId = update.message.chat_id
     photo_file.download('images/{}/{}.jpg'.format(context.user_data['gameId'], str(chatId)))
     if checkJoinable(context.user_data['gameId']):
-        player = Assassin(context.user_data['name'], context.user_data['codeName'], context.user_data['address'], chatId, context.user_data['major'], context.user_data['weapon'], context.user_data['gameId'])
+        player = Assassin(context.user_data['name'], context.user_data['codeName'], context.user_data['address'],
+                          chatId, context.user_data['major'], context.user_data['weapon'], context.user_data['gameId'])
         update.message.reply_text(getRules())
-        update.message.reply_text('That\'s it. I will contact you again once the game has begun. Stay vigilant! If you have any further questions, text your game master @{}'.format(getMaster(context.user_data['gameId'])[1]))
-        logger.info('User name: {x}, id: {y} finished signing up for a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+        update.message.reply_text(
+            'That\'s it. I will contact you again once the game has begun. Stay vigilant! If you have any further questions, text your game master @{}'.format(
+                getMaster(context.user_data['gameId'])[1]))
+        logger.info(
+            'User name: {x}, id: {y} finished signing up for a game.'.format(x=update.message.from_user.first_name,
+                                                                             y=update.message.chat_id))
     else:
         update.message.reply_text('Could not finish signup as game has already started')
     return ConversationHandler.END
 
+
 def dropout(update, context):
-    logger.info('User name: {x}, id: {y} dropped out of a game.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} dropped out of a game.'.format(x=update.message.from_user.first_name,
+                                                                        y=update.message.chat_id))
     if checkJoined(update.message.chat_id):
         if checkJoined(update.message.chat_id, started=True):
             if checkAlive(update.message.chat_id):
@@ -272,12 +315,14 @@ def dropout(update, context):
                 hunter = eliminatePlayer(update.message.chat_id)
                 sendTarget(context, hunter[0])
             else:
-                update.message.reply_text('You are already dead, but the game is still running. We are unable to fully terminate you until the game has concluded')
+                update.message.reply_text(
+                    'You are already dead, but the game is still running. We are unable to fully terminate you until the game has concluded')
         else:
             eliminatePlayer(update.message.chat_id)
             update.message.reply_text('You are hereby terminated')
     else:
         update.message.reply_text('You are not enrolled in a game')
+
 
 def burn(update, context):
     # If the person has a game registered
@@ -290,7 +335,8 @@ def burn(update, context):
                 # If the player id is enrolled in the game of the master
                 if playerEnrolled(player, update.message.chat_id):
                     try:
-                        context.bot.send_message(player, 'You have been burnt by the game master. You are therefore considered dead')
+                        context.bot.send_message(player,
+                                                 'You have been burnt by the game master. You are therefore considered dead')
                     except:
                         logger.info('Sending message to {x} caused an exception'.format(x=player))
                     update.message.reply_text('Burning player ' + getPlayerCodeName(player, update.message.chat_id)[0])
@@ -300,20 +346,26 @@ def burn(update, context):
                     if hunter:
                         sendTarget(context, hunter[0])
                 else:
-                    update.message.reply_text('This player is not enrolled in your game. Use /players to get an overview of your players and their ids')
+                    update.message.reply_text(
+                        'This player is not enrolled in your game. Use /players to get an overview of your players and their ids')
             else:
-                update.message.reply_text('This is not a valid player-id. Use /players to get an overview of your players and their ids')
+                update.message.reply_text(
+                    'This is not a valid player-id. Use /players to get an overview of your players and their ids')
         else:
-            update.message.reply_text('Please provide the disgraced assassins id after the command (e.g. /burn 123456789), use /players to obtain a list')
+            update.message.reply_text(
+                'Please provide the disgraced assassins id after the command (e.g. /burn 123456789), use /players to obtain a list')
     else:
         update.message.reply_text('You do not have a game registered')
 
+
 def dossier(update, context):
-    logger.info('User name: {x}, id: {y} requested dossier.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} requested dossier.'.format(x=update.message.from_user.first_name,
+                                                                    y=update.message.chat_id))
     if (checkJoined(update.message.chat_id, started=True)) and checkAlive(update.message.chat_id):
         sendTarget(context, update.message.chat_id)
     else:
         update.message.reply_text('You are not enrolled in a running game')
+
 
 def sendTarget(context, chat_id):
     target = getAssassin(getAssassin(chat_id)[6])
@@ -323,27 +375,32 @@ def sendTarget(context, chat_id):
         winner(context, target[8], chat_id)
         return
     random_skills = ['lockpicking', 'hand-to-hand combat', 'target acquisition',
-                'covert operations', 'intelligence gathering', 'marksmanship',
-                'knife-throwing', 'explosives', 'poison', 'seduction',
-                'disguises', 'exotic weaponry', 'vehicles', 'disguise']
+                     'covert operations', 'intelligence gathering', 'marksmanship',
+                     'knife-throwing', 'explosives', 'poison', 'seduction',
+                     'disguises', 'exotic weaponry', 'vehicles', 'disguise']
     rand = random.randint(0, len(random_skills) - 1)
     rand2 = random.randint(0, len(random_skills) - 1)
     while rand == rand2:
         rand2 = random.randint(0, len(random_skills) - 1)
-    
-    context.bot.send_photo(chat_id, photo=open('images/' + str(target[8]) + '/' + str(target[0]) + '.jpg', 'rb'), caption=
-    'Name: ' + str(target[1]) + 
-    '\n\nCodename: ' + str(target[2]) + 
-    '\n\nAddress: ' + str(target[3]) + 
-    '\n\nSpeciality: ' + random_skills[rand]+', '+random_skills[rand2]+', '+str(target[4])+ 
-    '\n\nConsidered to be armed and extremely dangerous!')
+
+    context.bot.send_photo(chat_id, photo=open('images/' + str(target[8]) + '/' + str(target[0]) + '.jpg', 'rb'),
+                           caption=
+                           'Name: ' + str(target[1]) +
+                           '\n\nCodename: ' + str(target[2]) +
+                           '\n\nAddress: ' + str(target[3]) +
+                           '\n\nSpeciality: ' + random_skills[rand] + ', ' + random_skills[rand2] + ', ' + str(
+                               target[4]) +
+                           '\n\nConsidered to be armed and extremely dangerous!')
+
 
 def winner(context, game_id, chat_id):
-    context.bot.send_message(chat_id, 'Congratulations Assassin. You are the last person standing in your game! You truly are an exceptional killer.')
+    context.bot.send_message(chat_id,
+                             'Congratulations Assassin. You are the last person standing in your game! You truly are an exceptional killer.')
     gameMaster = getMaster(game_id)[0]
     context.bot.send_message(gameMaster, 'Your game has concluded! There is only one person left standing.')
     send_leaderboard(context, gameMaster)
     stopGame(gameMaster)
+
 
 def leaderboard(update, context):
     if checkPresent(update.message.chat_id):
@@ -354,46 +411,60 @@ def leaderboard(update, context):
     else:
         update.message.reply_text('You do not have a game registered, use /newgame to register a game')
 
+
 def send_leaderboard(context, chat_id):
     table = '`Name [X] = dead' + (' ' * 7) + '| Codename' + (' ' * 4) + '| Kills\n'
     players = getPlayerlist(chat_id)
     for player in players:
         if player[4]:
-            table += player[1] + (' ' * 8)[:8-len([1])] + '| ' + player[2] + (' ' * 12)[:12-len(player[2])] + '| ' + str(player[3]) + '\n'
+            table += player[1] + (' ' * 8)[:8 - len([1])] + '| ' + player[2] + (' ' * 12)[
+                                                                               :12 - len(player[2])] + '| ' + str(
+                player[3]) + '\n'
         else:
-            table += player[1] + ' [X]' + (' ' * 4)[:4-len([1])] + '| ' + player[2] + (' ' * 12)[:12-len(player[2])] + '| ' + str(player[3]) + '\n'
+            table += player[1] + ' [X]' + (' ' * 4)[:4 - len([1])] + '| ' + player[2] + (' ' * 12)[:12 - len(
+                player[2])] + '| ' + str(player[3]) + '\n'
     context.bot.send_message(chat_id, text=table + '`', parse_mode=ParseMode.MARKDOWN)
+
 
 def players(update, context):
     if checkPresent(update.message.chat_id):
         table = '`Id' + (' ' * 8) + '| Name' + (' ' * 16) + '| Codename\n'
         players = getPlayerlist(update.message.chat_id)
         for player in players:
-            table += str(player[0]) + (' ' * 10)[:10-len(str(player[0]))] + '| ' + player[1] + (' ' * 10)[:10-len(player[1])] + '| ' + player[2] + '\n'
+            table += str(player[0]) + (' ' * 10)[:10 - len(str(player[0]))] + '| ' + player[1] + (' ' * 10)[:10 - len(
+                player[1])] + '| ' + player[2] + '\n'
         update.message.reply_text(text=table + '`', parse_mode=ParseMode.MARKDOWN)
     else:
         update.message.reply_text('You do not have a game registered, use /newgame to register a game')
+
 
 # Player claims to have killed their target, send confirmation request to target, which can be contested
 def confirmKill(update, context):
     if checkJoined(update.message.chat_id, started=True):
         if checkAlive(update.message.chat_id):
-            logger.info('User name: {x}, id: {y} claimed a kill.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+            logger.info('User name: {x}, id: {y} claimed a kill.'.format(x=update.message.from_user.first_name,
+                                                                         y=update.message.chat_id))
             # extracts information about target of this player
             target = getAssassin(getAssassin(update.message.chat_id)[6])
             # index 0 is player id
             setPresumedDead(target[0], 1)
-            update.message.reply_text('I will check with your target whether this is true, if it takes longer than 24 hours until you get your new target, text your game master @{}'.format(getMaster(target[8])[1]))
-            context.bot.send_message(target[0], 'Your hunter has claimed to have assassinated you! If this is true, type /confirmdead. If it is not, text your game master @{}'.format(getMaster(target[8])[1]))
+            update.message.reply_text(
+                'I will check with your target whether this is true, if it takes longer than 24 hours until you get your new target, text your game master @{}'.format(
+                    getMaster(target[8])[1]))
+            context.bot.send_message(target[0],
+                                     'Your hunter has claimed to have assassinated you! If this is true, type /confirmdead. If it is not, text your game master @{}'.format(
+                                         getMaster(target[8])[1]))
         else:
             update.message.reply_text('Dead people can\'t claim kills')
     else:
         update.message.reply_text('You are not enrolled in a game')
 
+
 def confirmDead(update, context):
     if checkJoined(update.message.chat_id, started=True):
         if getPresumedDead(update.message.chat_id):
-            logger.info('User name: {x}, id: {y} confirmed they are dead.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+            logger.info('User name: {x}, id: {y} confirmed they are dead.'.format(x=update.message.from_user.first_name,
+                                                                                  y=update.message.chat_id))
 
             update.message.reply_text('I guess this is only natural selection')
             hunter = eliminatePlayer(update.message.chat_id, kill=True)
@@ -404,8 +475,10 @@ def confirmDead(update, context):
     else:
         update.message.reply_text('You are not enrolled in a game')
 
+
 def task(update, context):
-    logger.info('User name: {x}, id: {y} tried to answer a task.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} tried to answer a task.'.format(x=update.message.from_user.first_name,
+                                                                         y=update.message.chat_id))
     if checkJoined(update.message.chat_id) and checkAlive(update.message.chat_id):
         update.message.reply_text('There is currently no task to submit')
         return ConversationHandler.END
@@ -413,12 +486,15 @@ def task(update, context):
         update.message.reply_text('You can not submit an answer because you are either dead or not enrolled in a game')
         return ConversationHandler.END
 
+
 def task_answer(update, context):
-    logger.info('User name: {x}, id: {y} submitted the answer {z}.'.format(x=update.message.from_user.first_name, y=update.message.chat_id, z=update.message.text))
+    logger.info('User name: {x}, id: {y} submitted the answer {z}.'.format(x=update.message.from_user.first_name,
+                                                                           y=update.message.chat_id,
+                                                                           z=update.message.text))
     submitted = 0
-    #try:
+    # try:
     #    submitted = int(update.message.text.replace('€', '').replace(',', '').replace('.#', ''))
-    #except ValueError:
+    # except ValueError:
     #    update.message.reply_text('Improperly formatted')
     #    return ConversationHandler.END
     if update.message.text == '2147026403':
@@ -427,6 +503,7 @@ def task_answer(update, context):
     else:
         update.message.reply_text('That answer is incorrect!')
     return ConversationHandler.END
+
 
 def pm(update, context):
     if update.message.chat_id == DEVELOPER_CHAT_ID or update.message.chat_id == 755660906:
@@ -439,23 +516,27 @@ def pm(update, context):
     else:
         update.message.reply_text('Forbidden')
 
+
 def rules(update, context):
     update.message.reply_text('These are the rules for your game:\n' + getRules())
 
+
 def getRules():
     ruleText = (''
-    '1. Your task is to assassinate your assigned target by shooting them with a water gun. (Kills must be reported to gamemaster bot by both assassin and target)\n'
-    '2. Targets are always safe in their room, in classes, and places of work.\n'
-    '3. When you assassinate your target, their target becomes your new target.\n'
-    '4. If you are shot by your target, you are then disabled for 24 hrs.\n'
-    '5. The last person alive or the person with the most assassinations at the end of the game is the  winner\n'
-    '6. Always stay 1.5 meters away from other assassins. They\'re assassins after all\n'
-    '7. If per official guidelines you are required to quarantine, or you have corona-like symptoms, you\'ll have to withdraw from the game\n'
-    '8. You mustn\'t leave the premises for more than 5 whole days\n')
+                '1. Your task is to assassinate your assigned target by shooting them with a water gun. (Kills must be reported to gamemaster bot by both assassin and target)\n'
+                '2. Targets are always safe in their room, in classes, and places of work.\n'
+                '3. When you assassinate your target, their target becomes your new target.\n'
+                '4. If you are shot by your target, you are then disabled for 24 hrs.\n'
+                '5. The last person alive or the person with the most assassinations at the end of the game is the  winner\n'
+                '6. Always stay 1.5 meters away from other assassins. They\'re assassins after all\n'
+                '7. If per official guidelines you are required to quarantine, or you have corona-like symptoms, you\'ll have to withdraw from the game\n'
+                '8. You mustn\'t leave the premises for more than 5 whole days\n')
     return ruleText
 
+
 def help_overview(update, context):
-    logger.info('User name: {x}, id: {y} requested help.'.format(x=update.message.from_user.first_name, y=update.message.chat_id))
+    logger.info('User name: {x}, id: {y} requested help.'.format(x=update.message.from_user.first_name,
+                                                                 y=update.message.chat_id))
     update.message.reply_text(
         'This Bot was written by github.com/ossner. The code is licensed under the MIT license\n\n'
         '*User commands:*\n'
@@ -472,8 +553,10 @@ def help_overview(update, context):
         '/broadcast - Send a message to all participating players\n'
         '/burn - Burn an assassin after non-compliance to the rules', parse_mode=ParseMode.MARKDOWN)
 
+
 def dirty(string):
     return re.compile('[@!#$%^&*<>?\|}{~:;]').search(string) or bool(emoji.get_emoji_regexp().search(string))
+
 
 def main():
     updater = Updater(os.getenv("SAS_TOKEN"), use_context=True)
@@ -487,16 +570,14 @@ def main():
 
     dp.add_handler(CommandHandler('stopgame', stop_game, run_async=True))
 
-
     dp.add_handler(CommandHandler('broadcast', broadcast, run_async=True))
 
     dp.add_handler(MessageHandler(Filters.photo & Filters.caption(r'/broadcast'), broadcast, run_async=True))
 
-
     dp.add_handler(CommandHandler('broadcastall', broadcastAll, run_async=True))
 
-    dp.add_handler(MessageHandler(Filters.photo & Filters.caption(r'^(/broadcastAll)|(/broadcastall)'), broadcastAll, run_async=True))
-
+    dp.add_handler(MessageHandler(Filters.photo & Filters.caption(r'^(/broadcastAll)|(/broadcastall)'), broadcastAll,
+                                  run_async=True))
 
     dp.add_handler(ConversationHandler(
         entry_points=[CommandHandler('joinGame', join_game, run_async=True)],
@@ -505,7 +586,7 @@ def main():
             GAMECODE: [MessageHandler(Filters.text & ~Filters.command, assassin_name, run_async=True)],
             ASSASSINNAME: [MessageHandler(Filters.text & ~Filters.command, code_name, run_async=True)],
             CODENAME: [MessageHandler(Filters.text & ~Filters.command, weapon, run_async=True)],
-            WEAPON: [CallbackQueryHandler(address, pattern='^\d$' , run_async=True)],
+            WEAPON: [CallbackQueryHandler(address, pattern='^\d$', run_async=True)],
             ADDRESS: [MessageHandler(Filters.text & ~Filters.command, major, run_async=True)],
             MAJOR: [MessageHandler(Filters.text & ~Filters.command, image, run_async=True)],
             PICTURE: [MessageHandler(Filters.photo & ~Filters.command, signup_done, run_async=True)]
