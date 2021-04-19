@@ -17,22 +17,19 @@ import os
 from pathlib import Path
 
 from AssassinsApp.bot_database_interface import get_developers, add_game, user_has_game, db_start_game, game_started, \
-    check_joined, get_master, add_assassin, game_exists, kill_player, remove_player, get_target_of, get_assassins, \
+    check_joined, get_master, add_assassin, game_exists, kill_player, remove_player, get_target_of, get_assassin_ids, \
     assign_targets, get_game_id
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-con = sqlite3.connect(os.path.join(BASE_DIR, 'db.sqlite3'))
-cur = con.cursor()
+GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)  # Constants needed for conversation
+
+ANSWER = 1  # Constant for the task conversation, since there is only one step
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logging.basicConfig(filename='bot.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)
-
-ANSWER = 1
 
 
 def error_handler(update, context):
@@ -57,6 +54,7 @@ def error_handler(update, context):
 
 
 def start(update, context):
+    """ Welcome message for new users, command has to be entered at the start of every new conversation """
     logger.info('User name: {x}, id: {y} started the chat.'.format(x=update.message.from_user.first_name,
                                                                    y=update.message.chat_id))
     update.message.reply_text(
@@ -65,8 +63,8 @@ def start(update, context):
         'more about me and what I can do, type /help')
 
 
-# Fallback command if the user wants to end his conversation
 def cancel(update, context):
+    """ Fallback command if the user cancels the conversation """
     logger.info('User name: {x}, id: {y} cancelled the conversation.'.format(x=update.message.from_user.first_name,
                                                                              y=update.message.chat_id))
     update.message.reply_text('Cancelled. Roger.')
@@ -94,6 +92,12 @@ def new_game(update, context):
 
 
 def start_game(update, context):
+    """ Start the game of the person issuing the command
+
+    This includes setting the game started value to 1,
+    computing the player's targets and sending out the
+    dossiers
+    """
     logger.info('User name: {x}, id: {y} tried to start their game.'.format(x=update.message.from_user.first_name,
                                                                             y=update.message.chat_id))
     if user_has_game(update.message.chat_id):
@@ -104,7 +108,7 @@ def start_game(update, context):
             db_start_game(game_id)
             update.message.reply_text('Your game has been started and your assassins will be notified')
             assign_targets(game_id)
-            for assassin in get_assassins(game_id):
+            for assassin in get_assassin_ids(game_id):
                 send_target(context, assassin)
         else:
             update.message.reply_text('Your game has already started')
@@ -113,6 +117,14 @@ def start_game(update, context):
 
 
 def stop_game(update, context):
+    """ This command stops the game of the person issuing it
+
+    This means the game has to have been stopped manually, so there was no
+    last man standing. Before the game is stopped in the database, compute the leaderboard
+    and determine the players with:
+    1. The most kills (alive)
+    2. The most kills (dead if more kills than alive)
+    """
     if user_has_game(update.message.chat_id):
         if game_started(get_game_id(game_master_id=update.message.chat_id)):
             logger.info('User name: {x}, id: {y} stopped their game.'.format(x=update.message.from_user.first_name,
@@ -125,15 +137,20 @@ def stop_game(update, context):
         update.message.reply_text('You do not have a game registered. Create one with /newgame')
 
 
-# Texts message to all players enrolled in game
 def broadcast(update, context, only_alive=True):
+    """ Send a message to all the users participating in the game
+
+    if only_alive is False then it will send the update out to all the users
+    registered in the game. If True (default) it will only send the message
+    to the players alive
+    """
     if user_has_game(update.message.chat_id):
         if context.args:
             message = ' '.join(context.args)
             logger.info('User name: {x}, id: {y} broadcast {z}.'.format(x=update.message.from_user.first_name,
                                                                         y=update.message.chat_id,
                                                                         z=message))
-            players = get_assassins(get_game_id(update.message.chat_id), only_alive=only_alive)
+            players = get_assassin_ids(get_game_id(update.message.chat_id), only_alive=only_alive)
             for player in players:
                 try:
                     context.bot.send_message(player, message)
@@ -146,12 +163,13 @@ def broadcast(update, context, only_alive=True):
         update.message.reply_text('You don\'t have a game registered')
 
 
-# Texts message to all players enrolled in game
 def broadcast_all(update, context):
+    """ Let's a game master send a message to all the players (alive or dead) """
     broadcast(update, context, only_alive=False)
 
 
 def join_game(update, context):
+    """ Start the sign-up process for users to join an existing game """
     if check_joined(update.message.chat_id):
         update.message.reply_text('You are already enrolled in a running game. You can use /dropout to cancel that')
         return ConversationHandler.END
@@ -269,6 +287,12 @@ def signup_done(update, context):
 
 
 def dropout(update, context):
+    """ User wants to drop out of a game, notify hunter and update database
+
+    If an assassin wants to leave a running game, kill them off without attributing a kill
+    to their hunter and then notify the hunter about their new target.
+    If the game has not started yet, simply remove the player from the database
+    """
     if check_joined(update.message.chat_id):
         logger.info('User name: {x}, id: {y} dropped out of a game.'.format(x=update.message.from_user.first_name,
                                                                             y=update.message.chat_id))
@@ -282,10 +306,19 @@ def dropout(update, context):
 
 
 def burn(update, context):
+    """ Forcefully removes a player from the game
+
+    A game master can invoke this command to remove a player
+    that has violated the rules from the game.
+    This needs to kill off the player in the database and
+    if the game has started, notify their hunter about the
+    new target.
+    """
     pass
 
 
 def dossier(update, context):
+    """ User requested their target's dossier, send all the needed information """
     if check_joined(update.message.chat_id):
         if game_started(get_game_id(participant_id=update.message.chat_id)):
             logger.info('User name: {x}, id: {y} requested their dossier.'.format(x=update.message.from_user.first_name,
@@ -298,6 +331,11 @@ def dossier(update, context):
 
 
 def send_target(context, chat_id):
+    """ Send the target of the assassin with the specified id to that person
+
+    This includes gathering the details from the database and formatting the
+    information with a little window-dressing with random skills
+    """
     # Gather needed information about target from the database
     target_id, name, code_name, address, major, game_id = get_target_of(chat_id)
     random_skills = ['lockpicking', 'hand-to-hand combat', 'target acquisition',
@@ -316,28 +354,42 @@ def send_target(context, chat_id):
                            ))
 
 
-def winner(context, game_id, chat_id):
-    pass
-
-
 def leaderboard(update, context):
+    """ TODO: Send the leaderboard to the game master issuing the command
+
+    The leaderboard is sorted first by alive/dead and second by number of kills
+    and should include things like name, codename and tally.
+    Example format:
+    ✅ | John Doe      | MrDoe  | 2
+    ✅ | Some Pacifist | Hippie | 0
+    ❌ | Jane Doe      | MrsDoe | 1
+    ❌ | Doc Brown     | TheDoc | 0
+    """
     pass
 
 
-def send_leaderboard(context, chat_id):
+def game_overview(update, context):
+    """ TODO Send a complete and comprehensive list of the players enrolled in the game,
+     giving the game master a good overview of players alive and the paths the game has
+    taken so far (perhaps send a graphical overview) """
     pass
 
 
-def players(update, context):
-    pass
-
-
-# Player claims to have killed their target, send confirmation request to target, which can be contested
 def confirm_kill(update, context):
+    """ TODO Player claims to have killed their target, send confirmation request to target, which can be contested
+
+    This includes setting the presumed_dead value of the target to one
+    and sending out a message along these lines "Your hunter claims to have killed you!
+    Enter /confirmdead if this is true, if not contact your game master"
+    The /confirmdead command will lead the user to the confirm_dead function
+    """
     pass
 
 
 def confirm_dead(update, context):
+    """ TODO Player confirms they have been killed, check if they are actually presumed dead and if so
+    kill them off by setting their target value to NULL and sending their previous target to their killer
+    """
     pass
 
 
@@ -350,6 +402,7 @@ def task_answer(update, context):
 
 
 def pm(update, context):
+    """ Admin command that lets developers send personal messages to people by specifying their telegram_id"""
     if update.message.chat_id in get_developers():
         # Context args are chat id of the user to PM followed by message to be sent
         message = ' '.join(context.args[1:])
@@ -396,7 +449,7 @@ def help_overview(update, context):
         '*Admin commands:*\n'
         '/leaderboard - Get the scoreboard of the game you\'re hosting\n'
         '/freeforall - Set your game to free-for-all mode, where everyone can be shot by anyone. '
-                                                                  'Send /freeforall again to cancel\n'
+        'Send /freeforall again to cancel\n'
         '/broadcast - Send a message to all participating players currently alive\n'
         '/broadcastall - Send a message to all participating players, dead or alive\n'
         '/burn - Burn an assassin after non-compliance to the rules (or when you feel like it)',
@@ -460,7 +513,7 @@ def main():
 
     dp.add_handler(CommandHandler('leaderboard', leaderboard, run_async=True))
 
-    dp.add_handler(CommandHandler('players', players, run_async=True))
+    dp.add_handler(CommandHandler('players', game_overview, run_async=True))
 
     dp.add_handler(CommandHandler('confirmKill', confirm_kill, run_async=True))
 

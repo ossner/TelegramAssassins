@@ -12,14 +12,18 @@ def user_has_game(user_id):
     return not cur.fetchone() is None
 
 
-# returns a list of telegram IDs of registered developers
 def get_developers():
+    """ Gets a list of developer id's (e.g. for checking privileges)
+    :return: a list of telegram IDs of registered developers
+    """
     con, cur = connect()
     return [i[0] for i in cur.execute("SELECT id FROM Admins").fetchall()]
 
 
-# Tries to add a game with the provided parameters and returns True if it was successful
 def add_game(game_id, master_id, master_name):
+    """ Tries to add a game with the provided parameters
+    :return: True if the insert was successful, False if it couldn't be inserted due to duplicates
+    """
     con, cur = connect()
     try:
         cur.execute("INSERT INTO Games(id, game_master_id, game_master_user) VALUES (?, ?, ?)",
@@ -92,7 +96,7 @@ def get_target_of(chat_id):
         " INNER JOIN Assassins t ON h.target=t.id WHERE h.id=?", (chat_id,)).fetchone()
 
 
-def get_assassins(game_id, only_alive=False):
+def get_assassin_ids(game_id, only_alive=False):
     con, cur = connect()
     if only_alive:  # Only return assassins that are alive
         return [i[0] for i in
@@ -121,7 +125,7 @@ def get_game_id(game_master_id=None, participant_id=None):
 
 def assign_targets(game_id):
     con, cur = connect()
-    assassins = get_assassins(game_id)
+    assassins = get_assassin_ids(game_id)
     for i in range(len(assassins)):
         cur.execute("UPDATE Assassins SET target=? WHERE id=?", ((assassins[(i + 1) % len(assassins)]), assassins[i],))
     con.commit()
