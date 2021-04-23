@@ -1,9 +1,20 @@
 # TelegramAssassins
 Telegram Bot that manages instances of the live-action game "[Assassins](https://en.wikipedia.org/wiki/Assassin_(game))"
 
-## How it works
-Users can send commands to the Bot, these commands will get interpreted and data will be entered into the database
+## Setup Guide for Developers
+### Get your development bot token
+- Create a bot with telegram by sending /newbot to @Botfather 
+  and going through the converasation, the names of the bots don't matter
 
-Example:
+- Once Botfather gives you your bot token, create an environment variable 
+  called "SAS_TOKEN" and set it to your bot token
 
-``/newgame`` is a command that creates a new game where the user who texted the command will be the game master. So the bot carries out this SQL query: ``INSERT INTO games (id, master, username) VALUES (%s, %s, %s);`` where the gameid and the id of the gamemaster will be stored.
+### Create the Django Project
+- Clone this repository and create a Django project in its base directory 
+  (It's really easy when using PyCharm, but you can also use the command line)
+
+### Set up your Development Environment
+- run `python manage.py migrate` in the base directory of the project, this
+  will create your local database called "db.sqlite3"
+  
+- Run the database setup schema provided in the 
