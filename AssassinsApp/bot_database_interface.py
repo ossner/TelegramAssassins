@@ -72,10 +72,23 @@ def add_assassin(chat_id, name, code_name, address, studies, weapon, game_id):
 
 
 def kill_player(dead_id, killer_id=None):
-    if killer_id:  # User has been assassinated and there are points to award
-        pass
-    else:  # User has dropped out or has been burned by the game master
-        pass
+    con, cur = connect()
+    #  Kills off the person specified
+    if not game_started(get_game_id(participant_id=dead_id)):
+        remove_player(dead_id)
+    else:
+        # Update target of hunter
+        cur.execute("UPDATE Assassins "
+                    "SET target=(SELECT target FROM Assassins WHERE id=?) "
+                    "WHERE target=?;",
+                    (dead_id, dead_id,))
+        # Kill off player by setting target to NULL
+        cur.execute("UPDATE Assassins "
+                    "SET target=NULL, presumed_dead=0 "
+                    "WHERE id=?;", (dead_id, ))
+        if killer_id:  # User has been assassinated and there are points to award
+            cur.execute("UPDATE Assassins SET tally=tally+1 where id=?", (killer_id,))
+        con.commit()
 
 
 def remove_player(user_id):
@@ -129,7 +142,3 @@ def assign_targets(game_id):
     for i in range(len(assassins)):
         cur.execute("UPDATE Assassins SET target=? WHERE id=?", ((assassins[(i + 1) % len(assassins)]), assassins[i],))
     con.commit()
-
-
-if __name__ == '__main__':
-    print(get_game_id(game_master_id=705347597))

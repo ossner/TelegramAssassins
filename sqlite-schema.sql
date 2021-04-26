@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS Assassins;
+DROP TABLE IF EXISTS Admins;
+DROP TABLE IF EXISTS Games;
+
 create table Admins
 (
     id INTEGER
@@ -38,47 +42,56 @@ create table Assassins
 );
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
- values (1, 'Bssassin', 'Bss', 'Bss Str. 1', 'Bdvanced assassination', 0, 111);
+values (1, 'Bssassin', 'Bss', 'Bss Str. 1', 'Bdvanced assassination', 0, 111);
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Cssassin', 'Css', 'Css Str. 1', 'Cdvanced assassination', 0, 111);
-
-
-insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Dssassin', 'Dss', 'Dss Str. 1', 'Ddvanced assassination', 0, 111);
+values (2, 'Cssassin', 'Css', 'Css Str. 1', 'Cdvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Essassin', 'Ess', 'Ess Str. 1', 'Edvanced assassination', 0, 111);
+values (3, 'Dssassin', 'Dss', 'Dss Str. 1', 'Ddvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Fssassin', 'Fss', 'Fss Str. 1', 'Fdvanced assassination', 0, 111);
+values (4, 'Essassin', 'Ess', 'Ess Str. 1', 'Edvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Gssassin', 'Gss', 'Gss Str. 1', 'Gdvanced assassination', 0, 111);
+values (5, 'Fssassin', 'Fss', 'Fss Str. 1', 'Fdvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Hssassin', 'Hss', 'Hss Str. 1', 'Hdvanced assassination', 0, 111);
+values (6, 'Gssassin', 'Gss', 'Gss Str. 1', 'Gdvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Issassin', 'Iss', 'Iss Str. 1', 'Idvanced assassination', 0, 111);
+values (7, 'Hssassin', 'Hss', 'Hss Str. 1', 'Hdvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Jssassin', 'Jss', 'Jss Str. 1', 'Jdvanced assassination', 0, 111);
+values (8, 'Issassin', 'Iss', 'Iss Str. 1', 'Idvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Kssassin', 'Kss', 'Kss Str. 1', 'Kdvanced assassination', 0, 111);
+values (9, 'Jssassin', 'Jss', 'Jss Str. 1', 'Jdvanced assassination', 0, 111);
 
 
 insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
-values (1, 'Lssassin', 'Lss', 'Lss Str. 1', 'Ldvanced assassination', 0, 111);
+values (10, 'Kssassin', 'Kss', 'Kss Str. 1', 'Kdvanced assassination', 0, 111);
+
+
+insert into Assassins (id, name, code_name, address, major, needs_weapon, game)
+values (11, 'Lssassin', 'Lss', 'Lss Str. 1', 'Ldvanced assassination', 0, 111);
 
 insert into Games (id, game_master_id, game_master_user) values (111, 123123123, 'someone_has_this');
 
-
+UPDATE Assassins SET target=3 where id=2;
+UPDATE Assassins SET target=4 where id=3;
+UPDATE Assassins SET target=5 where id=4;
+UPDATE Assassins SET target=6 where id=5;
+UPDATE Assassins SET target=7 where id=6;
+UPDATE Assassins SET target=8 where id=7;
+UPDATE Assassins SET target=9 where id=8;
+UPDATE Assassins SET target=10 where id=9;
+UPDATE Assassins SET target=11 where id=10;
+UPDATE Assassins SET target=1 where id=11;

@@ -314,7 +314,20 @@ def burn(update, context):
     if the game has started, notify their hunter about the
     new target.
     """
-    pass
+    #  Check if calling user has a game associated with them
+    if game_exists(get_game_id(update.message.chat_id)):
+        #  Check command args validity
+        if context.args and re.match(r"^\d+$", context.args[0]):
+            player_id = context.args[0]
+            #  Check if player is actually enrolled in this persons game TODO remove and handle with db
+            if get_game_id(game_master_id=update.message.chat_id) == get_game_id(participant_id=player_id):
+                kill_player(player_id)
+            else:
+                update.message.reply_text('This assassins is not enrolled in your game')
+        else:
+            update.message.reply_text('Specified player id is invalid')
+    else:
+        update.message.reply_text('You do not have a game registered')
 
 
 def dossier(update, context):
