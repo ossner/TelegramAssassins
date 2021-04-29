@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 GAMECODE, ASSASSINNAME, CODENAME, WEAPON, ADDRESS, MAJOR, PICTURE = range(7)  # Constants needed for conversation
 
-ANSWER = 1  # Constant for the task conversation, since there is only one step
+ANSWER, MESSAGE = 1, 2  # Constant for the task conversation, since there is only one step
 
 # Enable logging
 logging.basicConfig(filename='bot.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -473,6 +473,10 @@ def dirty(string):
     return re.compile(r'[@!#$%^&*<>?|}{~;]').search(string)
 
 
+def free_for_all(update, context):
+    pass
+
+
 def main():
     updater = Updater(os.getenv("SAS_TOKEN"), use_context=True)
     dp = updater.dispatcher
@@ -514,13 +518,17 @@ def main():
         entry_points=[CommandHandler('task', task, run_async=True)],
         states={
             # After getting key, you move into method in the value
-            ANSWER: [MessageHandler(Filters.text & ~Filters.command, task_answer, run_async=True)]
+            # TODO Make this conversation accessible to game masters in order to
+            #  create a task and to users in order to answer a task
+            MESSAGE: [MessageHandler(Filters.text & ~Filters.command, task_answer, run_async=True)]
         },
         fallbacks=[CommandHandler('cancel', cancel, run_async=True)]))
 
     dp.add_handler(CommandHandler('dropout', dropout, run_async=True))
 
     dp.add_handler(CommandHandler('burn', burn, run_async=True))
+
+    dp.add_handler(CommandHandler('freeforall', free_for_all, run_async=True))
 
     dp.add_handler(CommandHandler('dossier', dossier, run_async=True))
 
