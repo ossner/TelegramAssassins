@@ -17,8 +17,8 @@ import os
 from pathlib import Path
 
 from AssassinsApp.bot_database_interface import get_developers, add_game, user_has_game, db_start_game, game_started, \
-    check_joined, get_master, add_assassin, game_exists, kill_player, remove_player, get_target_of, get_assassin_ids, \
-    assign_targets, get_game_id
+    get_assassin, get_master, add_assassin, game_exists, kill_player, remove_player, get_target_of, get_assassin_ids, \
+    assign_targets, get_game_id, set_presumed_dead, get_hunter, last_man_standing
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -170,7 +170,7 @@ def broadcast_all(update, context):
 
 def join_game(update, context):
     """ Start the sign-up process for users to join an existing game """
-    if check_joined(update.message.chat_id):
+    if get_assassin(update.message.chat_id):
         update.message.reply_text('You are already enrolled in a running game. You can use /dropout to cancel that')
         return ConversationHandler.END
     else:
@@ -215,19 +215,19 @@ def check_needs_weapon(update, context):
     context.user_data['code_name'] = update.message.text
     if dirty(context.user_data['code_name']):
         update.message.reply_text('🚨 Possible breach detected 🚨\nPlease refrain from using special characters')
-
-    keyboard = [
-        [
-            InlineKeyboardButton('I need a weapon', callback_data=1),
-            InlineKeyboardButton('I have a weapon', callback_data=0)
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton('I need a weapon', callback_data=1),
+                InlineKeyboardButton('I have a weapon', callback_data=0)
+            ]
         ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        'To participate it is recommended that you own a hydro-pneumatic weapon 🔫. Such weapons will be handed out by '
-        'our specialists. We can not guarantee you will receive one though.',
-        reply_markup=reply_markup)
-    return WEAPON
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text(
+            'To participate it is recommended that you own a hydro-pneumatic weapon 🔫. Such weapons will be handed out by '
+            'our specialists. We can not guarantee you will receive one though.',
+            reply_markup=reply_markup)
+        return WEAPON
 
 
 def get_address(update, context):
@@ -275,7 +275,7 @@ def signup_done(update, context):
             update.message.reply_text(
                 'That\'s it. I will contact you again once the game has begun. Stay vigilant! If you have any further '
                 'questions, text your game master @{}'.format(
-                    get_master(context.user_data['game_id'])))
+                    get_master(context.user_data['game_id'])['master_user']))
             logger.info(
                 'User name: {x}, id: {y} finished signing up for a game.'.format(x=update.message.from_user.first_name,
                                                                                  y=update.message.chat_id))
@@ -293,7 +293,7 @@ def dropout(update, context):
     to their hunter and then notify the hunter about their new target.
     If the game has not started yet, simply remove the player from the database
     """
-    if check_joined(update.message.chat_id):
+    if get_assassin(update.message.chat_id):
         logger.info('User name: {x}, id: {y} dropped out of a game.'.format(x=update.message.from_user.first_name,
                                                                             y=update.message.chat_id))
         if game_started(get_game_id(participant_id=update.message.chat_id)):
@@ -332,7 +332,7 @@ def burn(update, context):
 
 def dossier(update, context):
     """ User requested their target's dossier, send all the needed information """
-    if check_joined(update.message.chat_id):
+    if get_assassin(update.message.chat_id):
         if game_started(get_game_id(participant_id=update.message.chat_id)):
             logger.info('User name: {x}, id: {y} requested their dossier.'.format(x=update.message.from_user.first_name,
                                                                                   y=update.message.chat_id))
@@ -389,21 +389,53 @@ def game_overview(update, context):
 
 
 def confirm_kill(update, context):
-    """ TODO Player claims to have killed their target, send confirmation request to target, which can be contested
+    """ Player claims to have killed their target, send confirmation request to target, which can be contested
 
     This includes setting the presumed_dead value of the target to one
     and sending out a message along these lines "Your hunter claims to have killed you!
     Enter /confirmdead if this is true, if not contact your game master"
     The /confirmdead command will lead the user to the confirm_dead function
     """
-    pass
+    hunter = get_assassin(update.message.chat_id)
+    #  Check if this person is enrolled in a game and has a target assigned
+    if hunter and hunter['target']:
+        master_username = get_master(hunter['game'])['master_user']
+        #  Check if the hit was already reported
+        if get_assassin(hunter['target'])['presumed_dead'] == 0:
+            update.message.reply_text(
+                'Alright, I will check with your target. If you don\'t hear back from me soon, text your game master '
+                '@{}'.format(master_username))
+            #  Set the target's presumed dead to 1 so the target can confirm that they are dead
+            set_presumed_dead(hunter['target'])
+            context.bot.send_message(hunter['target'], 'Your hunter has claimed your assassination. If this is true, '
+                                                       'issue the command /confirmDead otherwise text your game '
+                                                       'master @{}'.format(master_username))
+        else:
+            update.message.reply_text(
+                'You already issued this command, talk to your game master @{}'.format(master_username))
+    else:
+        update.message.reply_text('You are not enrolled in a game or don\'t have a target assigned to you')
 
 
 def confirm_dead(update, context):
-    """ TODO Player confirms they have been killed, check if they are actually presumed dead and if so
+    """ Player confirms they have been killed, check if they are actually presumed dead and if so
     kill them off by setting their target value to NULL and sending their previous target to their killer
     """
-    pass
+    target = get_assassin(update.message.chat_id)
+    if target:
+        if target['presumed_dead'] == 1:
+            update.message.reply_text('You were too weak for the society')
+            kill_player(target['id'], killer_id=get_hunter(target['id']))
+            if last_man_standing(get_game_id(participant_id=target['id'])):
+                # todo: stop game and stuff
+                pass
+            else:
+                send_target(context, get_hunter(target['id']))
+        else:
+            update.message.reply_text('Nobody has claimed your kill (yet)')
+            pass
+    else:
+        update.message.reply_text('You are not enrolled in a game')
 
 
 def task(update, context):

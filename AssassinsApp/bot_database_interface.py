@@ -50,14 +50,51 @@ def game_started(game_id):
     return cur.execute("SELECT * FROM Games WHERE id=? AND started=1", (game_id,)).fetchone()
 
 
-def check_joined(user_id):
+def get_assassin(user_id):
     con, cur = connect()
-    return cur.execute("SELECT * FROM Assassins WHERE id=?", (user_id,)).fetchone()
+    field_list = cur.execute("SELECT id, name, code_name, target, presumed_dead, game FROM Assassins WHERE id=?",
+                             (user_id,)).fetchone()
+    if field_list:
+        return {
+            'id': field_list[0],
+            'name': field_list[1],
+            'code_name': field_list[2],
+            'target': field_list[3],
+            'presumed_dead': field_list[4],
+            'game': field_list[5]
+        }
+    else:
+        return None
+
+
+def last_man_standing(game_id):
+    """ Returns None if there are multiple people still in the game (i.e. no target assigned to themselves) """
+    con, cur = connect()
+    return cur.execute("SELECT id FROM Assassins WHERE target=id AND game = ?", (game_id,)).fetchone()
+
+
+def set_presumed_dead(user_id):
+    con, cur = connect()
+    cur.execute("UPDATE Assassins SET presumed_dead=1 WHERE id = ?", (user_id,))
+    con.commit()
 
 
 def get_master(game_id):
     con, cur = connect()
-    return cur.execute("SELECT game_master_user FROM Games WHERE id=?", (game_id,)).fetchone()[0]
+    field_list = cur.execute("SELECT game_master_id, game_master_user FROM Games WHERE id=?", (game_id,)).fetchone()
+    if field_list:
+        return {
+            'master_id': field_list[0],
+            'master_user': field_list[1]
+        }
+    else:
+        return None
+
+
+def get_hunter(user_id):
+    """ Return the id of the user who is currently hunting this one"""
+    con, cur = connect()
+    cur.execute("SELECT id FROM Assassins WHERE target=?", (user_id,)).fetchone()
 
 
 def add_assassin(chat_id, name, code_name, address, studies, weapon, game_id):
@@ -85,7 +122,7 @@ def kill_player(dead_id, killer_id=None):
         # Kill off player by setting target to NULL
         cur.execute("UPDATE Assassins "
                     "SET target=NULL, presumed_dead=0 "
-                    "WHERE id=?;", (dead_id, ))
+                    "WHERE id=?;", (dead_id,))
         if killer_id:  # User has been assassinated and there are points to award
             cur.execute("UPDATE Assassins SET tally=tally+1 where id=?", (killer_id,))
         con.commit()
