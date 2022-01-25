@@ -6,18 +6,50 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DB_FILE = os.path.join(BASE_DIR, 'db.sqlite3')
 
 
-def user_has_game(user_id):
-    con, cur = connect()
-    cur.execute("SELECT * FROM Games WHERE game_master_id=?", (user_id,))
-    return not cur.fetchone() is None
-
-
 def get_developers():
     """ Gets a list of developer id's (e.g. for checking privileges)
     :return: a list of telegram IDs of registered developers
     """
     con, cur = connect()
     return [i[0] for i in cur.execute("SELECT id FROM Admins").fetchall()]
+
+
+def add_task(game_id, message, solution):
+    con, cur = connect()
+    cur.execute("INSERT INTO Task (message, solution, game) VALUES (?, ?, ?);", (message, solution, game_id))
+    con.commit()
+
+
+def get_active_task(game_id):
+    con, cur = connect()
+    fields = cur.execute("SELECT id, message, solution FROM Task WHERE game=? AND active=1", (game_id,)).fetchone()
+    if fields:
+        return {
+            'id': fields[0],
+            'message': fields[1],
+            'solution': fields[2]
+        }
+    else:
+        return None
+
+
+def set_task_inactive(game_id):
+    con, cur = connect()
+    cur.execute("UPDATE Task SET active=0 WHERE game=? AND active=1", (game_id,))
+    cur.execute("UPDATE Assassins SET jokers_used=jokers_used+1 WHERE task_answered=0 AND target IS NOT NULL AND game=?", (game_id,))
+    cur.execute("UPDATE Assassins SET task_answered=0 WHERE game=?", (game_id,))
+    con.commit()
+
+
+def get_three_joker_users(game_id):
+    con, cur = connect()
+    return [i[0] for i in cur.execute("SELECT id FROM Assassins WHERE jokers_used=3 AND target IS NOT NULL AND game=?", (game_id,)).fetchall()]
+
+
+def give_task_point(user_id):
+    con, cur = connect()
+    cur.execute("UPDATE Assassins SET task_answered=1 WHERE id=?", (user_id,))
+    con.commit()
 
 
 def add_game(game_id, master_id, master_name):
@@ -52,8 +84,8 @@ def game_started(game_id):
 
 def get_assassin(user_id):
     con, cur = connect()
-    field_list = cur.execute("SELECT id, name, code_name, target, presumed_dead, game FROM Assassins WHERE id=?",
-                             (user_id,)).fetchone()
+    field_list = cur.execute("SELECT id, name, code_name, target, presumed_dead, tally, subscribed, game "
+                             "FROM Assassins WHERE id=?", (user_id,)).fetchone()
     if field_list:
         return {
             'id': field_list[0],
@@ -61,7 +93,9 @@ def get_assassin(user_id):
             'code_name': field_list[2],
             'target': field_list[3],
             'presumed_dead': field_list[4],
-            'game': field_list[5]
+            'tally': field_list[5],
+            'subscribed': field_list[6],
+            'game': field_list[7],
         }
     else:
         return None
@@ -92,9 +126,10 @@ def get_master(game_id):
 
 
 def get_hunter(user_id):
-    """ Return the id of the user who is currently hunting this one"""
+    """ Return the user who is currently hunting this one"""
     con, cur = connect()
-    cur.execute("SELECT id FROM Assassins WHERE target=?", (user_id,)).fetchone()
+    hunter_id = cur.execute("SELECT id FROM Assassins WHERE target=?", (user_id,)).fetchone()[0]
+    return get_assassin(hunter_id)
 
 
 def add_assassin(chat_id, name, code_name, address, studies, weapon, game_id):
@@ -134,16 +169,11 @@ def remove_player(user_id):
     con.commit()
 
 
-def connect():
-    con = sqlite3.connect(DB_FILE)
-    return con, con.cursor()
-
-
 def get_target_of(chat_id):
     con, cur = connect()
+    target_id = cur.execute("SELECT target FROM Assassins WHERE id=?", (chat_id,)).fetchone()[0]
     return cur.execute(
-        "SELECT t.id, t.name,t.code_name,t.address,t.major, t.game FROM Assassins h"
-        " INNER JOIN Assassins t ON h.target=t.id WHERE h.id=?", (chat_id,)).fetchone()
+        "SELECT id, name, code_name, address, major, game FROM Assassins WHERE id=?", (target_id,)).fetchone()
 
 
 def get_assassin_ids(game_id, only_alive=False):
@@ -173,9 +203,31 @@ def get_game_id(game_master_id=None, participant_id=None):
             return None
 
 
+def get_subscribers(game_id):
+    con, cur = connect()
+    return [i[0] for i in cur.execute("SELECT id FROM Assassins WHERE game=? AND subscribed=1", (game_id,)).fetchall()]
+
+
 def assign_targets(game_id):
     con, cur = connect()
     assassins = get_assassin_ids(game_id)
     for i in range(len(assassins)):
         cur.execute("UPDATE Assassins SET target=? WHERE id=?", ((assassins[(i + 1) % len(assassins)]), assassins[i],))
     con.commit()
+
+
+def change_subscription(user_id):
+    con, cur = connect()
+    cur.execute("UPDATE Assassins SET subscribed = (subscribed+1)%2 WHERE id=?", (user_id,))
+    con.commit()
+
+
+def set_game_stopped(game_id):
+    con, cur = connect()
+    cur.execute("UPDATE Games SET started=0 WHERE id=?", (game_id,))
+    con.commit()
+
+
+def connect():
+    con = sqlite3.connect(DB_FILE)
+    return con, con.cursor()
