@@ -12,4 +12,3 @@ Telegram Bot that manages instances of the live-action game "[Assassins](https:/
 - Once Botfather gives you your bot token, create an environment variable called "SAS_TOKEN" and set it to your bot
   token
   
-**The instance is currently running on the legacy implementation (to be found in the legacy directory)**
